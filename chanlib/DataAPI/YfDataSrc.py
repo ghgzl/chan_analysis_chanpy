@@ -144,4 +144,4 @@ class CYfDataSrc(CCommonStockApi):
                 DATA_FIELD.FIELD_HIGH: float(row["high"]),
                 DATA_FIELD.FIELD_LOW: float(row["low"]),
                 DATA_FIELD.FIELD_VOLUME: float(row["volume"] if "volume" in df.columns else row["vol"]),
-            })
+            }, autofix=True)
