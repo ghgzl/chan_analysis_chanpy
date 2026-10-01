@@ -82,6 +82,10 @@ def fetch_df(code, begin, end, allow_sim=False):
         raise RuntimeError(f"数据获取失败: {code} {begin}~{end}")
     df = df.dropna()
     df["date"] = pd.to_datetime(df["date"])
+    # 极值清洗：chan.py 校验严格（high>=open/close、low<=open/close）
+    # Yahoo 数据偶发 high<close，此处强制修正，避免 CChanException
+    df["high"] = df[["high", "open", "close"]].max(axis=1)
+    df["low"] = df[["low", "open", "close"]].min(axis=1)
     return df.reset_index(drop=True)
 
 
@@ -124,6 +128,12 @@ class CYfDataSrc(CCommonStockApi):
             begin = str(self.begin_date)[:10] if self.begin_date else "2020-01-01"
             end = str(self.end_date)[:10] if self.end_date else datetime.date.today().strftime("%Y-%m-%d")
             df = fetch_df(self.raw_code, begin, end)
+        else:
+            print("[数据源] 使用 set_cache 注入的数据（不重新拉取）")
+        # 出口统一清洗：无论 cache 还是 fetch，进 CChan 前都保证极值合法
+        df = df.copy()
+        df["high"] = df[["high", "open", "close"]].max(axis=1)
+        df["low"] = df[["low", "open", "close"]].min(axis=1)
         has_date = "date" in df.columns
         for _, row in df.iterrows():
             t = row["date"] if has_date else row["dt"]
