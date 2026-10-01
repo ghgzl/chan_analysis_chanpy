@@ -237,6 +237,11 @@ def run_chan(df, code, kind, start, end):
     """用 chan.py 跑缠论分析，返回 (kl_list, chan)
     df: 预取的 DataFrame（dt/open/close/high/low/vol/amount）
     """
+    # 兜底清洗：无论 df 来自哪个路径，都保证 high=max(high,open,close)、low=min(...)
+    # （chan.py 校验严格，Yahoo 数据偶发 high<close 会抛 CChanException）
+    df = df.copy()
+    df["high"] = df[["high", "open", "close"]].max(axis=1)
+    df["low"] = df[["low", "open", "close"]].min(axis=1)
     # 数据源缓存 DataFrame（避免二次拉取）
     CYfDataSrc.set_cache(df)
 

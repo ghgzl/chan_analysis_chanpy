@@ -28,6 +28,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+DEPLOY_FINGERPRINT = "v3-runchan-sanitize"  # 部署指纹：用于确认云端代码版本
+
 # 缓存股票映射表（每日刷新）
 get_stock_map_cached = st.cache_data(ttl=86400, show_spinner=False)(get_stock_map)
 
@@ -35,6 +37,7 @@ get_stock_map_cached = st.cache_data(ttl=86400, show_spinner=False)(get_stock_ma
 # ==================== 主界面 ====================
 st.title("📈 缠论分析 · chan.py 版")
 st.caption("引擎：chan.py（经典纯 Python 缠论框架）· 数据源：akshare(东财) → yfinance 兜底")
+st.caption(f"🩺 部署指纹：{DEPLOY_FINGERPRINT}")
 
 with st.sidebar:
     st.header("⚙️ 分析参数")
@@ -114,7 +117,12 @@ with st.status("正在进行 chan.py 缠论分析…", expanded=True) as status:
     except Exception as e:
         status.update(label="❌ 缠论分析失败", state="error")
         import traceback
-        st.error(f"{type(e).__name__}: {str(e)}\n\n```\n{traceback.format_exc()[-1500:]}\n```")
+        # 数据诊断：清洗前后 high<close 行数（定位数据源问题）
+        import pandas as _pd
+        _bad_before = int((df["high"] < df["close"]).sum())
+        _bad_after = int((_pd.concat([df["high"], df["open"], df["close"]], axis=1).max(axis=1) < df["close"]).sum())
+        st.error(f"数据诊断：high<close 行数 = {_bad_before}（清洗后应=0，实际={_bad_after}）\n\n"
+                 f"{type(e).__name__}: {str(e)}\n\n```\n{traceback.format_exc()[-1200:]}\n```")
         st.stop()
 
 # ---- 结果指标 ----
