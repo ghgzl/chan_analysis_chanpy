@@ -183,12 +183,14 @@ if bsps:
             t = ",".join(x.value for x in bsp.type)
             rows.append({
                 "类型": "买" if bsp.is_buy else "卖",
-                "级别": t,
+                "买卖点类型": t,
                 "日期": ctime_str(bsp.klu.time),
                 "价格": round(bsp.klu.close, 3),
                 "所在笔": bsp.bi.idx,
             })
         st.dataframe(pd.DataFrame(rows))
+        st.caption("图例：1=一买/一卖（背驰转折） · 1p=盘整背驰一买/一卖 · 2=二买/二卖（回抽确认） · "
+                   "2s=类二买/类二卖 · 3a/3b=三买/三卖（中枢在买卖点后/前） · 逗号并列=同点同时满足多类型")
 else:
     st.info("当前区间未识别到形态学买卖点（可能中枢结构不完整或笔数不足）")
 
