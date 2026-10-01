@@ -113,7 +113,8 @@ with st.status("正在进行 chan.py 缠论分析…", expanded=True) as status:
         status.update(label="✅ 缠论分析完成", state="complete")
     except Exception as e:
         status.update(label="❌ 缠论分析失败", state="error")
-        st.error(f"{type(e).__name__}: {str(e)}")
+        import traceback
+        st.error(f"{type(e).__name__}: {str(e)}\n\n```\n{traceback.format_exc()[-1500:]}\n```")
         st.stop()
 
 # ---- 结果指标 ----
