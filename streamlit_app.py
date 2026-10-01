@@ -121,7 +121,18 @@ with st.status("正在进行 chan.py 缠论分析…", expanded=True) as status:
         import pandas as _pd
         _bad_before = int((df["high"] < df["close"]).sum())
         _bad_after = int((_pd.concat([df["high"], df["open"], df["close"]], axis=1).max(axis=1) < df["close"]).sum())
+        # fetch_df 路径诊断：直接模拟 CChan 的数据获取，确认 fetch_df 返回是否已清洗
+        _fetch_diag = "（未执行）"
+        try:
+            from chanlib.DataAPI.YfDataSrc import fetch_df
+            _fdf = fetch_df("000725.SZ", str(start_date), str(end_date))
+            _fdf["high"] = _fdf[["high", "open", "close"]].max(axis=1)
+            _fdf["low"] = _fdf[["low", "open", "close"]].min(axis=1)
+            _fetch_diag = f"fetch_df 返回 {len(_fdf)} 行，清洗后 high<close = {int((_fdf['high'] < _fdf['close']).sum())} 行"
+        except Exception as _fe:
+            _fetch_diag = f"fetch_df 诊断失败：{type(_fe).__name__}: {_fe}"
         st.error(f"数据诊断：high<close 行数 = {_bad_before}（清洗后应=0，实际={_bad_after}）\n\n"
+                 f"{_fetch_diag}\n\n"
                  f"{type(e).__name__}: {str(e)}\n\n```\n{traceback.format_exc()[-1200:]}\n```")
         st.stop()
 
