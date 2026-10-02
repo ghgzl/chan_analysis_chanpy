@@ -316,24 +316,83 @@ def make_kline_option(df, kl_list, name, code, pt_msg, bc_msg):
             "xAxis": x1, "yAxis": round(zs.high, 3),
         }])
 
-    # 买卖点标注（chan.py 原生识别）
+    # 线段级中枢（segzs_list，用线段当"笔"算的中枢）：蓝色矩形
+    segzs_areas = []
+    for zs in kl_list.segzs_list:
+        x0, x1 = x_of(ctime_str(zs.begin.time)), x_of(ctime_str(zs.end.time))
+        if x0 is None or x1 is None:
+            continue
+        segzs_areas.append([{
+            "xAxis": x0, "yAxis": round(zs.low, 3),
+        }, {
+            "xAxis": x1, "yAxis": round(zs.high, 3),
+        }])
+
+    # 线段（seg）：逐条画，确定线段实线、未确定虚线段虚线，交替紫/橙色
+    seg_series = []
+    seg_colors = ["#7c3aed", "#ea580c"]
+    for i, seg in enumerate(kl_list.seg_list):
+        try:
+            b_klu = seg.start_bi.get_begin_klu()
+            e_klu = seg.end_bi.get_end_klu()
+            xb, xe = x_of(ctime_str(b_klu.time)), x_of(ctime_str(e_klu.time))
+            if xb is None or xe is None:
+                continue
+            seg_series.append({
+                "name": "线段", "type": "line",
+                "data": [[xb, round(seg.get_begin_val(), 3)], [xe, round(seg.get_end_val(), 3)]],
+                "symbol": "none",
+                "lineStyle": {"width": 2.4, "color": seg_colors[i % 2],
+                              "type": "solid" if seg.is_sure else "dashed"},
+                "z": 4,
+            })
+        except Exception:
+            continue
+
+    # 买卖点标注（chan.py 原生识别）+ 区间套关联线（relate_bsp1：二买/三买关联到一买）
     markers = []
+    tao_lines = []
     for bsp in kl_list.bs_point_lst.getSortedBspList():
         xi = x_of(ctime_str(bsp.klu.time))
         if xi is None:
             continue
         t = ",".join(x.value for x in bsp.type)
         kind = "买" if bsp.is_buy else "卖"
+        tao_tag = ""
+        if bsp.relate_bsp1 is not None:
+            tao_tag = "⇄套"
+            rklu = bsp.relate_bsp1.klu
+            rx = x_of(ctime_str(rklu.time))
+            if rx is not None:
+                tao_lines.append([{"coord": [xi, round(bsp.klu.close, 3)]},
+                                  {"coord": [rx, round(rklu.close, 3)]}])
         markers.append({
-            "name": f"{kind}{t}", "coord": [xi, round(bsp.klu.close, 3)],
-            "value": f"{kind}{t} @{bsp.klu.close:.2f}",
+            "name": f"{kind}{t}{tao_tag}", "coord": [xi, round(bsp.klu.close, 3)],
+            "value": f"{kind}{t}{tao_tag} @{bsp.klu.close:.2f}",
             "itemStyle": {"color": "#14b143" if bsp.is_buy else "#ef232a"},
         })
+
+    # 背驰标注：检测到背驰时在最后笔端点画星标
+    bc_marker = []
+    if "背驰" in bc_msg and len(kl_list.bi_list) > 0:
+        last_bi = kl_list.bi_list[-1]
+        try:
+            e_klu = last_bi.get_end_klu()
+            xe = x_of(ctime_str(e_klu.time))
+            if xe is not None:
+                bc_marker.append({
+                    "name": "背驰", "symbol": "star", "symbolSize": 26,
+                    "coord": [xe, round(last_bi.get_end_val(), 3)],
+                    "value": bc_msg,
+                    "itemStyle": {"color": "#f59e0b"},
+                })
+        except Exception:
+            pass
 
     option = {
         "animation": False,
         "backgroundColor": "#ffffff",
-        "legend": {"data": ["K线", "笔", "底分型", "顶分型"],
+        "legend": {"data": ["K线", "笔", "底分型", "顶分型", "线段", "线段中枢"],
                    "top": 4, "textStyle": {"fontSize": 12}},
         "tooltip": {"trigger": "axis", "axisPointer": {"type": "cross"}},
         "axisPointer": {"link": [{"xAxisIndex": "all"}]},
@@ -375,12 +434,28 @@ def make_kline_option(df, kl_list, name, code, pt_msg, bc_msg):
                                   "borderWidth": 1},
                     "data": zs_areas,
                 },
+                "markLine": {
+                    "silent": True, "symbol": "none",
+                    "lineStyle": {"color": "#64748b", "type": "dashed", "width": 1},
+                    "data": tao_lines,
+                },
                 "markPoint": {
                     "symbol": "pin", "symbolSize": 42,
                     "label": {"fontSize": 9, "formatter": "{b}"},
-                    "data": markers,
+                    "data": markers + bc_marker,
                 },
             },
+            {
+                "name": "线段中枢", "type": "line", "data": [],
+                "tooltip": {"show": False},
+                "markArea": {
+                    "silent": True,
+                    "itemStyle": {"color": "rgba(59,130,246,0.12)", "borderColor": "#3b82f6",
+                                  "borderWidth": 1, "borderType": "dashed"},
+                    "data": segzs_areas,
+                },
+            },
+            *seg_series,
             {
                 "name": "笔", "type": "line", "data": bi_line,
                 "symbol": "none", "lineStyle": {"width": 1.6, "color": "#0e6efd"},
@@ -389,12 +464,12 @@ def make_kline_option(df, kl_list, name, code, pt_msg, bc_msg):
             {
                 "name": "底分型", "type": "scatter", "data": fx_bottom,
                 "symbol": "triangle", "symbolSize": 9,
-                "itemStyle": {"color": "#14b143"}, "z": 4,
+                "itemStyle": {"color": "#14b143"}, "z": 5,
             },
             {
                 "name": "顶分型", "type": "scatter", "data": fx_top,
                 "symbol": "triangle", "symbolRotate": 180, "symbolSize": 9,
-                "itemStyle": {"color": "#ef232a"}, "z": 4,
+                "itemStyle": {"color": "#ef232a"}, "z": 5,
             },
         ],
     }
