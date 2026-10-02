@@ -28,7 +28,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-DEPLOY_FINGERPRINT = "v3-runchan-sanitize"  # 部署指纹：用于确认云端代码版本
+DEPLOY_FINGERPRINT = "v4-kline-four-layers"  # 部署指纹：用于确认云端代码版本（v4=图上四要素：线段/线段中枢/区间套/背驰）
 
 # 缓存股票映射表（每日刷新）
 get_stock_map_cached = st.cache_data(ttl=86400, show_spinner=False)(get_stock_map)
