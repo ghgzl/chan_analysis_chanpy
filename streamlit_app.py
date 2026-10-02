@@ -3,7 +3,7 @@
 缠论分析网页版（Streamlit）—— chan.py 引擎版
 功能：
   1. 自由输入股票名称或代码（支持模糊匹配）
-  2. 自由输入开始/结束时间（默认 2024-01-01 ~ 最新交易日）
+  2. 自由输入开始/结束时间（默认 2004-01-01 ~ 最新交易日；数据太少线段难以形成，可提前）
   3. K线不足 600 根给出提醒
   4. ECharts 交互式K线图：dataZoom 滚轮缩放 + 滑块 + 双击复位
   5. 引擎为 chan.py（经典纯 Python 缠论框架）：分型/笔/线段/中枢/三类买卖点/背驰
@@ -28,7 +28,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-DEPLOY_FINGERPRINT = "v4-kline-four-layers"  # 部署指纹：用于确认云端代码版本（v4=图上四要素：线段/线段中枢/区间套/背驰）
+DEPLOY_FINGERPRINT = "v5-default-start-2004"  # 部署指纹：用于确认云端代码版本（v5=默认起始2004+线段提醒）
 
 # 缓存股票映射表（每日刷新）
 get_stock_map_cached = st.cache_data(ttl=86400, show_spinner=False)(get_stock_map)
@@ -53,7 +53,7 @@ with st.sidebar:
     analyze_btn = st.button("🚀 开始分析", type="primary", use_container_width=True)
 
     st.divider()
-    st.caption("提示：K线少于 600 根会提醒（默认 2024-01-01 至今约 660+ 个交易日，通常满足）")
+    st.caption("提示：K线少于 600 根会提醒；默认起始 2004-01-01（数据太少线段难以形成，可手动提前或改为上市日期附近）")
 
 if not symbol_input:
     st.info("👈 在左侧输入股票名称或代码，设置起止日期，点击「开始分析」")
@@ -139,6 +139,7 @@ with st.status("正在进行 chan.py 缠论分析…", expanded=True) as status:
 # ---- 结果指标 ----
 bis = kl_list.bi_list
 zss = kl_list.zs_list
+segs = kl_list.seg_list
 bsps = kl_list.bs_point_lst.getSortedBspList()
 bc_msg, _, _ = check_bei_chi(kl_list)
 
@@ -158,11 +159,19 @@ pt_msg = f"买{len(buy_pts)} 卖{len(sell_pts)}"
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("最新收盘价", f"{df.iloc[-1]['close']:.2f}")
 m2.metric("有效K线数", f"{len(df)}")
-m3.metric("笔 / 中枢", f"{len(bis)} / {len(zss)}")
+m3.metric("笔/中枢/线段", f"{len(bis)} / {len(zss)} / {len(segs)}")
 m4.metric("买卖点", pt_msg)
 
 st.markdown(f"**最新一笔走势**：{bi_info}")
 st.markdown(f"**缠论背驰判断**：{bc_msg}")
+
+# 线段形成情况提醒：数据太少时线段难以完整形成
+if len(segs) < 3:
+    st.warning(f"⚠️ 当前仅形成 {len(segs)} 条线段，缠论结构不完整。"
+               f"建议把开始日期提前（默认 {DEFAULT_START}，可设为该股上市日期附近）以获得更多 K 线数据。")
+else:
+    sure_seg = sum(1 for s in segs if s.is_sure)
+    st.markdown(f"**线段**：共 {len(segs)} 条（确定 {sure_seg} 条）· 线段级中枢 {len(kl_list.segzs_list)} 个 · 图上紫色/橙色折线为线段，蓝色矩形为线段级中枢")
 
 # ---- 买卖点明细 ----
 st.markdown("**chan.py 三类买卖点识别**")

@@ -19,7 +19,7 @@ from ChanConfig import CChanConfig
 from Common.CEnum import KL_TYPE, BI_DIR
 from DataAPI.YfDataSrc import CYfDataSrc
 
-DEFAULT_START = "2024-01-01"
+DEFAULT_START = "2004-01-01"  # 默认起始：2004 或更早（数据太少线段难以形成）
 MIN_K_LINES = 600  # 用户要求的提醒阈值
 
 
