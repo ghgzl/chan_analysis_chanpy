@@ -50,9 +50,9 @@ exit /b 1
 :run
 echo [3/4] Starting web app...
 echo The browser will open automatically once ready.
-echo If it does not open, visit http://localhost:8501 manually.
-echo Close this window to stop the app.
+echo If it does not open, visit http://localhost:8502 manually.
+echo Close this window to stop the app. (port 8502 = chan.py version; czsc keeps 8501)
 echo.
 echo [4/4] Running...
-python -m streamlit run streamlit_app.py
+python -m streamlit run streamlit_app.py --server.port 8502
 pause
